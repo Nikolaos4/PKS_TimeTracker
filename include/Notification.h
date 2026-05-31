@@ -14,6 +14,9 @@ public:
     Notification(int id, int userId, int taskId, const std::string& message);
     void send();
     void markAsRead();
+    int getUserId() const { return userId; }
+    int getTaskId() const { return taskId; }
+    std::string getMessage() const { return message; }
 };
 
 #endif
