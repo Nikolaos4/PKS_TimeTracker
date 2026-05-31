@@ -196,7 +196,10 @@ void generateReport() {
         cout << "Сначала войдите в систему.\n";
         return;
     }
-    db.generateReport(currentUserId);
+    string from, to;
+    cout << "Дата начала (ГГГГ-ММ-ДД): "; cin >> from;
+    cout << "Дата конца (ГГГГ-ММ-ДД): "; cin >> to;
+    db.generateReport(currentUserId, from, to);
 }
 
 void editTask() {

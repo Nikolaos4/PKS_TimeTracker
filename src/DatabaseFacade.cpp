@@ -151,14 +151,15 @@ bool DatabaseFacade::addNotification(const Notification& notif) {
     }
 }
 
-bool DatabaseFacade::generateReport(int userId) {
+bool DatabaseFacade::generateReport(int userId, const std::string& dateFrom, const std::string& dateTo) {
     try {
         pqxx::work txn(*conn);
         auto res = txn.exec_params(
             "SELECT t.title, te.start_time, te.end_time, te.duration_seconds "
             "FROM tasks t LEFT JOIN time_entries te ON t.id = te.task_id "
-            "WHERE t.user_id = $1", userId);
-        std::cout << "Отчёт для пользователя " << userId << ":\n";
+            "WHERE t.user_id = $1 AND te.start_time BETWEEN $2 AND $3",
+            userId, dateFrom, dateTo);
+        std::cout << "Отчёт для пользователя " << userId << " за период с " << dateFrom << " по " << dateTo << ":\n";
         bool hasData = false;
         for (const auto& row : res) {
             hasData = true;
@@ -167,10 +168,10 @@ bool DatabaseFacade::generateReport(int userId) {
                       << " | конец: " << row[2].as<std::string>()
                       << " | длительность: " << row[3].as<int>() << " сек\n";
         }
-        if (!hasData) std::cout << "Нет данных для отчёта.\n";
+        if (!hasData) std::cout << "Нет данных за указанный период.\n";
         return true;
-    } catch (const std::exception&) {
-        std::cerr << "Ошибка формирования отчёта" << std::endl;
+    } catch (const std::exception& e) {
+        std::cerr << "Ошибка формирования отчёта: " << e.what() << std::endl;
         return false;
     }
 }

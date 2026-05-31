@@ -26,7 +26,7 @@ public:
     bool startTimer(int taskId, const std::string& startTime);
     bool stopTimer(int taskId, const std::string& endTime, int duration);
     bool addNotification(const Notification& notif);
-    bool generateReport(int userId);
+    bool generateReport(int userId, const std::string& dateFrom, const std::string& dateTo);
     int getUserIdByLogin(const std::string& login);
     bool editTask(int taskId, const std::string& newTitle, const std::string& newDeadline,
                   const std::string& newStatus, const std::string& newDescription, int newPriority);
