@@ -24,4 +24,4 @@ target_include_directories(timetracker PRIVATE ${PQXX_INCLUDE_DIRS} ${POSTGRES_I
 target_link_libraries(timetracker ${PQXX_LIBRARIES} ${POSTGRES_LIBRARIES} ws2_32 wsock32)
 
 enable_testing()
-#add_subdirectory(tests)
+add_subdirectory(tests)

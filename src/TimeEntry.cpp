@@ -6,4 +6,8 @@ TimeEntry::TimeEntry(int id, int taskId, const std::string& startTime)
 
 int TimeEntry::getDuration() const { return durationSeconds; }
 
+void TimeEntry::stop(const std::string& endTime, int duration) {
+    this->endTime = endTime;
+    this->durationSeconds = duration;
+}
 // Метод stop удалён, так как остановка таймера выполняется через DatabaseFacade

@@ -7,48 +7,33 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(Catch2)
 
 set(PROJECT_INCLUDE_DIR ${CMAKE_SOURCE_DIR}/include)
+set(PROJECT_SRC_DIR ${CMAKE_SOURCE_DIR}/src)
 
+# Находим библиотеки PostgreSQL и libpqxx
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(PQXX REQUIRED libpqxx)
+pkg_check_modules(POSTGRES REQUIRED libpq)
 
-add_executable(test_user test_user.cpp ../src/User.cpp)
-target_link_libraries(test_user PRIVATE Catch2::Catch2WithMain)
-target_include_directories(test_user PRIVATE ${PROJECT_INCLUDE_DIR})
-add_test(NAME test_user COMMAND test_user)
+# Функция для добавления тестов
+function(add_test_executable NAME SOURCE_FILE)
+    add_executable(${NAME} ${SOURCE_FILE}
+        ${PROJECT_SRC_DIR}/User.cpp
+        ${PROJECT_SRC_DIR}/Task.cpp
+        ${PROJECT_SRC_DIR}/TimeEntry.cpp
+        ${PROJECT_SRC_DIR}/Notification.cpp
+        ${PROJECT_SRC_DIR}/DatabaseFacade.cpp
+        ${PROJECT_SRC_DIR}/Observer.cpp
+        ${PROJECT_SRC_DIR}/hash_utils.cpp
+    )
+    target_link_libraries(${NAME} PRIVATE Catch2::Catch2WithMain ${PQXX_LIBRARIES} ${POSTGRES_LIBRARIES} ws2_32 wsock32)
+    target_include_directories(${NAME} PRIVATE ${PROJECT_INCLUDE_DIR} ${PQXX_INCLUDE_DIRS} ${POSTGRES_INCLUDE_DIRS})
+    add_test(NAME ${NAME} COMMAND ${NAME})
+endfunction()
 
-add_executable(test_task test_task.cpp ../src/Task.cpp)
-target_link_libraries(test_task PRIVATE Catch2::Catch2WithMain)
-target_include_directories(test_task PRIVATE ${PROJECT_INCLUDE_DIR})
-add_test(NAME test_task COMMAND test_task)
-
-add_executable(test_timeentry test_timeentry.cpp ../src/TimeEntry.cpp)
-target_link_libraries(test_timeentry PRIVATE Catch2::Catch2WithMain)
-target_include_directories(test_timeentry PRIVATE ${PROJECT_INCLUDE_DIR})
-add_test(NAME test_timeentry COMMAND test_timeentry)
-
-add_executable(test_notification test_notification.cpp ../src/Notification.cpp)
-target_link_libraries(test_notification PRIVATE Catch2::Catch2WithMain)
-target_include_directories(test_notification PRIVATE ${PROJECT_INCLUDE_DIR})
-add_test(NAME test_notification COMMAND test_notification)
-
-add_executable(test_databasefacade 
-    test_databasefacade.cpp 
-    ../src/User.cpp
-    ../src/Task.cpp
-    ../src/TimeEntry.cpp
-    ../src/Notification.cpp
-    ../src/DatabaseFacade.cpp
-)
-target_link_libraries(test_databasefacade PRIVATE Catch2::Catch2WithMain)
-target_include_directories(test_databasefacade PRIVATE ${PROJECT_INCLUDE_DIR})
-add_test(NAME test_databasefacade COMMAND test_databasefacade)
-
-add_executable(scenarios 
-    scenarios.cpp 
-    ../src/User.cpp
-    ../src/Task.cpp
-    ../src/TimeEntry.cpp
-    ../src/Notification.cpp
-    ../src/DatabaseFacade.cpp
-)
-target_link_libraries(scenarios PRIVATE Catch2::Catch2WithMain)
-target_include_directories(scenarios PRIVATE ${PROJECT_INCLUDE_DIR})
-add_test(NAME scenarios COMMAND scenarios)
+# Добавляем тесты
+add_test_executable(test_user test_user.cpp)
+add_test_executable(test_task test_task.cpp)
+add_test_executable(test_timeentry test_timeentry.cpp)
+add_test_executable(test_notification test_notification.cpp)
+add_test_executable(test_databasefacade test_databasefacade.cpp)
+add_test_executable(scenarios scenarios.cpp)

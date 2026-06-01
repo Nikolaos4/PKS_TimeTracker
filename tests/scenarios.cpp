@@ -1,66 +1,75 @@
 #include <catch2/catch_all.hpp>
 #include "DatabaseFacade.h"
-#include "User.h"
-#include "Task.h"
-#include "TimeEntry.h"
-#include "Notification.h"
-#include <iostream>
+#include <ctime>
 
-// Регистрация и аутентификация
-TEST_CASE("Scenario: User registration and authentication", "[scenario]") {
-    DatabaseFacade db;
-    bool reg = db.registerUser("vasya", "secret");
-    REQUIRE(reg == true);
-    
-    bool authOk = db.authenticateUser("vasya", "secret");
-    REQUIRE(authOk == true);
-    
-    // Пока заглушка возвращает true даже для неправильного пароля.
-    // В будущем, когда будет реальная проверка, этот тест должен упасть.
-    bool authBad = db.authenticateUser("vasya", "wrong");
-    REQUIRE(authBad == true); // временно
+// Сценарий 1: полный цикл регистрации, добавления задачи, таймера, отчёта
+TEST_CASE("Scenario 1: Full user workflow", "[scenario]") {
+    DatabaseFacade& db = DatabaseFacade::getInstance();
+    std::string login = "scen1_" + std::to_string(rand());
+    std::string pass = "pass";
+    REQUIRE(db.registerUser(login, pass) == true);
+    int uid = db.getUserIdByLogin(login);
+    REQUIRE(uid != -1);
+    Task t(0, uid, "Scenario task", "2025-12-31", "Test", 2);
+    REQUIRE(db.addTask(t) == true);
+    auto tasks = db.getTasksForUser(uid);
+    REQUIRE_FALSE(tasks.empty());
+    int tid = tasks.back().getId();
+    // Запуск таймера
+    time_t now = time(nullptr);
+    char buf[20];
+    strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M:%S", localtime(&now));
+    std::string startTime(buf);
+    REQUIRE(db.startTimer(tid, startTime) == true);
+    now += 10;
+    strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M:%S", localtime(&now));
+    std::string endTime(buf);
+    REQUIRE(db.stopTimer(tid, endTime, 0) == true);
+    // Отчёт
+    REQUIRE(db.generateReport(uid, "2025-01-01", "2025-12-31") == true);
+    // Статистика
+    db.getStatistics(uid); // не падает
+    // Удаление
+    REQUIRE(db.deleteTask(tid) == true);
 }
 
-// Создание задачи и таймер
-TEST_CASE("Scenario: Create task and timer", "[scenario]") {
-    DatabaseFacade db;
-    Task task(101, 1, "Write report", "2025-06-01");
-    bool added = db.addTask(task);
-    REQUIRE(added == true);
-    
-    bool start = db.startTimer(101, "2025-05-17 10:00:00");
-    REQUIRE(start == true);
-    
-    bool stop = db.stopTimer(101, "2025-05-17 12:30:00", 9000);
-    REQUIRE(stop == true);
-    
+// Сценарий 2: редактирование задачи и изменение статуса
+TEST_CASE("Scenario 2: Edit task and change status", "[scenario]") {
+    DatabaseFacade& db = DatabaseFacade::getInstance();
+    std::string login = "scen2_" + std::to_string(rand());
+    db.registerUser(login, "pass");
+    int uid = db.getUserIdByLogin(login);
+    Task t(0, uid, "Original", "2025-01-01", "Desc", 1);
+    db.addTask(t);
+    auto tasks = db.getTasksForUser(uid);
+    int tid = tasks.back().getId();
+    REQUIRE(db.editTask(tid, "Modified", "2026-01-01", "InProgress", "New desc", 3) == true);
+    REQUIRE(db.updateTaskStatus(tid, "Completed") == true);
+    auto updated = db.getTasksForUser(uid);
+    for (const auto& ut : updated) {
+        if (ut.getId() == tid) {
+            REQUIRE(ut.getTitle() == "Modified");
+            REQUIRE(ut.getStatus() == "Completed");
+        }
+    }
+    db.deleteTask(tid);
 }
 
-// Формирование отчёта
-TEST_CASE("Scenario: Generate report", "[scenario]") {
-    DatabaseFacade db;
-    Task t1(201, 1, "Task A", "2025-06-01");
-    Task t2(202, 1, "Task B", "2025-06-02");
+// Сценарий 3: множественные задачи и статистика
+TEST_CASE("Scenario 3: Multiple tasks and statistics", "[scenario]") {
+    DatabaseFacade& db = DatabaseFacade::getInstance();
+    std::string login = "scen3_" + std::to_string(rand());
+    db.registerUser(login, "pass");
+    int uid = db.getUserIdByLogin(login);
+    Task t1(0, uid, "Task A", "2025-01-01");
+    Task t2(0, uid, "Task B", "2025-01-02");
     db.addTask(t1);
     db.addTask(t2);
-    db.startTimer(201, "2025-05-17 09:00:00");
-    db.stopTimer(201, "2025-05-17 11:00:00", 7200);
-    
-    bool reportGenerated = db.generateReport(1);
-    REQUIRE(reportGenerated == true);
-}
-
-// Уведомление о дедлайне
-TEST_CASE("Scenario: Deadline notification", "[scenario]") {
-    DatabaseFacade db;
-    Task urgent(301, 1, "Urgent", "2025-05-18");
-    db.addTask(urgent);
-    
-    Notification notif(1, 1, 301, "Deadline approaching!");
-    bool added = db.addNotification(notif);
-    REQUIRE(added == true);
-    
-    // В заглушках просто проверим, что метод не падает.
-    notif.send();
-    SUCCEED("Notification sent without errors");
+    db.updateTaskStatus(1, "Completed"); // предполагаем, что ID = 1, но это может не сработать
+    // Лучше получить ID из БД
+    auto tasks = db.getTasksForUser(uid);
+    for (const auto& task : tasks) {
+        if (task.getTitle() == "Task A") db.updateTaskStatus(task.getId(), "Completed");
+    }
+    db.getStatistics(uid); // должно показать 1/2 выполнено
 }

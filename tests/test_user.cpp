@@ -1,36 +1,54 @@
 #include <catch2/catch_all.hpp>
+#include "DatabaseFacade.h"
 #include "User.h"
 
-TEST_CASE("User constructor initializes fields correctly", "[user]") {
-    User user(10, "john_doe", "hashed_password_123");
+TEST_CASE("User: constructor initializes fields correctly", "[user]") {
+    User user(10, "john", "hash123");
     REQUIRE(user.getId() == 10);
-    REQUIRE(user.getLogin() == "john_doe");
+    REQUIRE(user.getLogin() == "john");
 }
 
-TEST_CASE("User authentication with correct password", "[user]") {
-    User user(1, "alice", "secret_hash");
-    // В текущей заглушке authenticate всегда возвращает true.
-    // Проверяем, что метод вызывается и не падает.
-    REQUIRE(user.authenticate("secret_hash") == true);
+TEST_CASE("User: different users have different ids", "[user]") {
+    User u1(1, "a", "h1");
+    User u2(2, "b", "h2");
+    REQUIRE(u1.getId() != u2.getId());
+    REQUIRE(u1.getLogin() != u2.getLogin());
 }
 
-TEST_CASE("User authentication with wrong password", "[user]") {
-    User user(2, "bob", "real_hash");
-    // Заглушка возвращает true, но в будущем здесь должен быть false.
-    // Пока тест проходит, позже он укажет на необходимость исправления.
-    REQUIRE(user.authenticate("wrong_password") == true);
+// Следующие тесты используют реальную БД через фасад
+TEST_CASE("User: registration with unique login succeeds", "[user][db]") {
+    DatabaseFacade& db = DatabaseFacade::getInstance();
+    std::string login = "test_reg_" + std::to_string(rand());
+    REQUIRE(db.registerUser(login, "pass") == true);
 }
 
-TEST_CASE("Multiple authentication attempts", "[user]") {
-    User user(3, "charlie", "master_hash");
-    REQUIRE(user.authenticate("master_hash") == true);
-    REQUIRE(user.authenticate("wrong") == true);
-    REQUIRE(user.authenticate("another_wrong") == true);
+TEST_CASE("User: registration with duplicate login fails", "[user][db]") {
+    DatabaseFacade& db = DatabaseFacade::getInstance();
+    std::string login = "test_dup_" + std::to_string(rand());
+    REQUIRE(db.registerUser(login, "pass") == true);
+    REQUIRE(db.registerUser(login, "pass2") == false);
 }
 
-TEST_CASE("Different users have different ids and logins", "[user]") {
-    User user1(1, "first", "hash1");
-    User user2(2, "second", "hash2");
-    REQUIRE(user1.getId() != user2.getId());
-    REQUIRE(user1.getLogin() != user2.getLogin());
+TEST_CASE("User: authentication with correct password", "[user][db]") {
+    DatabaseFacade& db = DatabaseFacade::getInstance();
+    std::string login = "test_auth_" + std::to_string(rand());
+    std::string pass = "secret";
+    REQUIRE(db.registerUser(login, pass) == true);
+    REQUIRE(db.authenticateUser(login, pass) == true);
+}
+
+TEST_CASE("User: authentication with wrong password fails", "[user][db]") {
+    DatabaseFacade& db = DatabaseFacade::getInstance();
+    std::string login = "test_wrong_" + std::to_string(rand());
+    std::string pass = "correct";
+    REQUIRE(db.registerUser(login, pass) == true);
+    REQUIRE(db.authenticateUser(login, "wrong") == false);
+}
+
+TEST_CASE("User: getUserIdByLogin returns correct id", "[user][db]") {
+    DatabaseFacade& db = DatabaseFacade::getInstance();
+    std::string login = "test_id_" + std::to_string(rand());
+    REQUIRE(db.registerUser(login, "pass") == true);
+    int id = db.getUserIdByLogin(login);
+    REQUIRE(id > 0);
 }
